@@ -7,7 +7,7 @@ public class OffshoreProxyServer {
     private static final Logger logger = LoggerManager.getInstance(OffshoreProxyServer.class.getName());
     static final Object outLock = new Object();
     private static final ExecutorService executorService = Executors.newCachedThreadPool();
-    private static final BlockingQueue<Command> commandQueue = new LinkedBlockingQueue<>();
+    private static final EventBus eventBus = EventBus.getInstance();
 
     public static void main(String[] args) {
         ServerSocket serverSocket = null;
@@ -22,7 +22,7 @@ public class OffshoreProxyServer {
                         Socket shipSocket = finalServerSocket.accept();
                         logger.info("Client connected from: " + shipSocket.getRemoteSocketAddress());
                         Command command = CommandFactory.createServerCommand(shipSocket);
-                        commandQueue.put(command);
+                        eventBus.publish(command);
                     } catch (IOException e) {
                         if (finalServerSocket.isClosed()) {
                             logger.info("Server socket closed, stopping acceptance of new connections.");
@@ -39,7 +39,7 @@ public class OffshoreProxyServer {
 
             while (true) {
                 try {
-                    Command command = commandQueue.take();
+                    Command command = eventBus.take();
                     command.execute();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();

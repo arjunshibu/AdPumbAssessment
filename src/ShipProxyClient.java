@@ -6,7 +6,7 @@ import java.util.logging.*;
 
 public class ShipProxyClient {
     private static final ExecutorService executorService = Executors.newCachedThreadPool();
-    private static final BlockingQueue<Command> commandQueue = new LinkedBlockingQueue<>();
+    private static final EventBus eventBus = EventBus.getInstance();
     private static final Logger logger = LoggerManager.getInstance(ShipProxyClient.class.getName());
 
     public static void main(String[] args) {
@@ -25,7 +25,7 @@ public class ShipProxyClient {
                     try {
                         Socket clientSocket = finalLocalProxy.accept();
                         Command command = CommandFactory.createClientCommand(clientSocket, offshoreIn, offshoreOut);
-                        commandQueue.put(command);
+                        eventBus.publish(command);
                     } catch (IOException e) {
                         if (finalLocalProxy.isClosed()) {
                             logger.info("Server socket closed, stopping acceptance of new connections.");
@@ -43,7 +43,7 @@ public class ShipProxyClient {
 
             while (true) {
                 try {
-                    Command command = commandQueue.take();
+                    Command command = eventBus.take();
                     command.execute();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();

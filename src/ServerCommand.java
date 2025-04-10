@@ -16,7 +16,7 @@ public class ServerCommand extends AbstractCommand {
         try (DataInputStream in = new DataInputStream(shipSocket.getInputStream());
                 DataOutputStream out = new DataOutputStream(shipSocket.getOutputStream())) {
 
-            while (true) {
+            while (!shipSocket.isClosed()) {
                 int length;
                 try {
                     length = in.readInt();
@@ -48,7 +48,9 @@ public class ServerCommand extends AbstractCommand {
     @Override
     protected void cleanup() {
         try {
-            shipSocket.close();
+            if (shipSocket != null && !shipSocket.isClosed()) {
+                shipSocket.close();
+            }
         } catch (IOException e) {
             logger.severe("Error closing server socket: " + e.getMessage());
         }
@@ -75,7 +77,7 @@ public class ServerCommand extends AbstractCommand {
 
             try (Socket target = new Socket(url.getHost(), port)) {
                 OutputStream targetOut = target.getOutputStream();
-                InputStream targetIn = target.getInputStream();
+                DataInputStream targetIn = new DataInputStream(target.getInputStream());
 
                 targetOut.write(request.getBytes());
                 targetOut.flush();
@@ -83,10 +85,66 @@ public class ServerCommand extends AbstractCommand {
                 ByteArrayOutputStream buffer = new ByteArrayOutputStream();
                 byte[] data = new byte[8192];
                 int n;
-                while ((n = targetIn.read(data)) != -1) {
-                    buffer.write(data, 0, n);
-                    if (targetIn.available() == 0)
-                        break;
+                boolean isChunked = false;
+                int contentLength = -1;
+                boolean headersComplete = false;
+                StringBuilder headers = new StringBuilder();
+
+                // First read headers
+                while (!headersComplete) {
+                    int headerByte;
+                    while ((headerByte = targetIn.read()) != -1) {
+                        headers.append((char) headerByte);
+                        if (headers.toString().endsWith("\r\n\r\n")) {
+                            headersComplete = true;
+                            break;
+                        }
+                    }
+
+                    // Check for chunked transfer or content length
+                    String headerStr = headers.toString();
+                    if (headerStr.toLowerCase().contains("transfer-encoding: chunked")) {
+                        isChunked = true;
+                    } else if (headerStr.toLowerCase().contains("content-length:")) {
+                        String[] lines = headerStr.split("\r\n");
+                        for (String line : lines) {
+                            if (line.toLowerCase().startsWith("content-length:")) {
+                                contentLength = Integer.parseInt(line.split(":")[1].trim());
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // Write headers to buffer
+                buffer.write(headers.toString().getBytes());
+
+                if (isChunked) {
+                    // Handle chunked transfer encoding
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(targetIn));
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        if (line.isEmpty())
+                            continue;
+                        int chunkSize = Integer.parseInt(line, 16);
+                        if (chunkSize == 0)
+                            break;
+
+                        byte[] chunk = new byte[chunkSize];
+                        targetIn.readFully(chunk);
+                        buffer.write(chunk);
+                        reader.readLine(); // Skip the \r\n after the chunk
+                    }
+                } else if (contentLength > 0) {
+                    // Handle content length
+                    byte[] content = new byte[contentLength];
+                    targetIn.readFully(content);
+                    buffer.write(content);
+                } else {
+                    // Read until connection closes
+                    while ((n = targetIn.read(data)) != -1) {
+                        buffer.write(data, 0, n);
+                    }
                 }
 
                 byte[] responseBytes = buffer.toByteArray();
@@ -96,9 +154,16 @@ public class ServerCommand extends AbstractCommand {
                     out.flush();
                 }
             }
-
         } catch (Exception e) {
             logger.severe("Error handling HTTP request: " + e.getMessage());
+            try {
+                String errorResponse = "HTTP/1.1 500 Internal Server Error\r\nConnection: close\r\n\r\n";
+                out.writeInt(errorResponse.length());
+                out.write(errorResponse.getBytes());
+                out.flush();
+            } catch (IOException ex) {
+                logger.severe("Error sending error response: " + ex.getMessage());
+            }
         }
     }
 }

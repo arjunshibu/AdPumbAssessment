@@ -20,32 +20,53 @@ public class ClientCommand extends AbstractCommand {
                 InputStream clientIn = client.getInputStream();
                 OutputStream clientOut = client.getOutputStream()) {
             BufferedReader reader = new BufferedReader(new InputStreamReader(clientIn));
+
+            // Read the first line to check if it's a valid request
+            String firstLine = reader.readLine();
+            if (firstLine == null) {
+                return; // Connection closed
+            }
+
+            // Build the request
+            StringBuilder reqBuilder = new StringBuilder();
+            reqBuilder.append(firstLine).append("\r\n");
+
+            // Read headers and find content length
             String line;
-            while ((line = reader.readLine()) != null) {
-                StringBuilder reqBuilder = new StringBuilder();
+            while ((line = reader.readLine()) != null && !line.isEmpty()) {
                 reqBuilder.append(line).append("\r\n");
-                while (!(line = reader.readLine()).isEmpty()) {
-                    reqBuilder.append(line).append("\r\n");
-                }
-                reqBuilder.append("\r\n");
-                String request = reqBuilder.toString();
+            }
+            reqBuilder.append("\r\n");
 
-                String firstLine = request.split("\r\n")[0];
-                logger.info("Received request: " + firstLine);
+            String request = reqBuilder.toString();
+            logger.info("Received request: " + firstLine);
 
-                synchronized (offshoreOut) {
-                    offshoreOut.writeInt(request.length());
-                    offshoreOut.write(request.getBytes());
-                    offshoreOut.flush();
+            // Process the request
+            synchronized (offshoreOut) {
+                offshoreOut.writeInt(request.length());
+                offshoreOut.write(request.getBytes());
+                offshoreOut.flush();
+            }
+
+            // Read response
+            synchronized (offshoreIn) {
+                int len = offshoreIn.readInt();
+                if (len <= 0) {
+                    throw new IOException("Invalid response length: " + len);
                 }
 
-                synchronized (offshoreIn) {
-                    int len = offshoreIn.readInt();
-                    byte[] response = new byte[len];
-                    offshoreIn.readFully(response);
-                    clientOut.write(response);
-                    clientOut.flush();
+                byte[] response = new byte[len];
+                int totalRead = 0;
+                while (totalRead < len) {
+                    int read = offshoreIn.read(response, totalRead, len - totalRead);
+                    if (read == -1) {
+                        throw new IOException("Unexpected end of stream while reading response");
+                    }
+                    totalRead += read;
                 }
+
+                clientOut.write(response);
+                clientOut.flush();
             }
         }
     }
@@ -58,7 +79,9 @@ public class ClientCommand extends AbstractCommand {
     @Override
     protected void cleanup() {
         try {
-            client.close();
+            if (client != null && !client.isClosed()) {
+                client.close();
+            }
         } catch (IOException e) {
             logger.severe("Error closing client socket: " + e.getMessage());
         }

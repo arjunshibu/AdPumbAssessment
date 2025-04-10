@@ -1,13 +1,16 @@
 import java.util.concurrent.*;
 
 public class EventBus {
-    private static final EventBus instance = new EventBus();
+    private static EventBus instance;
     private final BlockingQueue<Command> commandQueue = new LinkedBlockingQueue<>();
 
     private EventBus() {
     }
 
     public static EventBus getInstance() {
+        if (instance == null) {
+            instance = new EventBus();
+        }
         return instance;
     }
 

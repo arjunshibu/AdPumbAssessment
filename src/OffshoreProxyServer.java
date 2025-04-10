@@ -21,7 +21,7 @@ public class OffshoreProxyServer {
                     try {
                         Socket shipSocket = finalServerSocket.accept();
                         logger.info("Client connected from: " + shipSocket.getRemoteSocketAddress());
-                        Command command = CommandFactory.createServerCommand(shipSocket);
+                        Command command = CommandFactory.getInstance().createServerCommand(shipSocket);
                         eventBus.publish(command);
                     } catch (IOException e) {
                         if (finalServerSocket.isClosed()) {

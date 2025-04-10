@@ -11,9 +11,9 @@ public class ShipProxyClient {
 
     public static void main(String[] args) {
         ServerSocket localProxy = null;
-        try (Socket offshoreSocket = new Socket("0.0.0.0", 9090);
-                DataInputStream offshoreIn = new DataInputStream(offshoreSocket.getInputStream());
-                DataOutputStream offshoreOut = new DataOutputStream(offshoreSocket.getOutputStream())) {
+        try (Socket proxySocket = new Socket("0.0.0.0", 9090);
+                DataInputStream proxyInputStream = new DataInputStream(proxySocket.getInputStream());
+                DataOutputStream proxyOutputStream = new DataOutputStream(proxySocket.getOutputStream())) {
 
             localProxy = new ServerSocket(8080);
             logger.info("Connected to Offshore Proxy Server");
@@ -24,7 +24,8 @@ public class ShipProxyClient {
                 while (!finalLocalProxy.isClosed()) {
                     try {
                         Socket clientSocket = finalLocalProxy.accept();
-                        Command command = CommandFactory.createClientCommand(clientSocket, offshoreIn, offshoreOut);
+                        Command command = CommandFactory.getInstance()
+                                .createClientCommand(clientSocket, proxyInputStream, proxyOutputStream);
                         eventBus.publish(command);
                     } catch (IOException e) {
                         if (finalLocalProxy.isClosed()) {

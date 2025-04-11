@@ -1,3 +1,7 @@
+package com.adpumb.proxy.handler;
+
+import com.adpumb.proxy.config.LoggerManager;
+
 import java.io.*;
 import java.util.logging.Logger;
 

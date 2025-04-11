@@ -1,3 +1,5 @@
+package com.adpumb.proxy.config;
+
 import java.util.logging.Formatter;
 import java.util.logging.LogRecord;
 

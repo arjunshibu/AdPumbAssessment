@@ -1,3 +1,5 @@
+package com.adpumb.proxy.config;
+
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
 import java.util.logging.Logger;

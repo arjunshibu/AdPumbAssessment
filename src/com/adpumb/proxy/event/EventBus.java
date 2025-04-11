@@ -1,3 +1,7 @@
+package com.adpumb.proxy.event;
+
+import com.adpumb.proxy.command.Command;
+
 import java.util.concurrent.*;
 
 public class EventBus {

@@ -1,3 +1,9 @@
+package com.adpumb.proxy.command;
+
+import com.adpumb.proxy.handler.*;
+import com.adpumb.proxy.handler.strategy.ProxyRequestHandlingStrategy;
+import com.adpumb.proxy.handler.strategy.RequestHandlingStrategy;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.net.Socket;
@@ -6,15 +12,13 @@ public class CommandFactory {
     private static CommandFactory instance;
     private final RequestHandler clientHandler;
     private final RequestHandlingStrategy requestStrategy;
-    private final RequestHandler httpHandler;
-    private final RequestHandler httpsHandler;
 
     private CommandFactory() {
-        httpHandler = HttpRequestHandler.getInstance();
-        httpsHandler = HttpsRequestHandler.getInstance();
+        RequestHandler httpHandler = HttpRequestHandler.getInstance();
+        RequestHandler httpsHandler = HttpsRequestHandler.getInstance();
         clientHandler = HttpClientHandler.getInstance();
 
-        ProxyRequestStrategy strategy = ProxyRequestStrategy.getInstance();
+        RequestHandlingStrategy strategy = ProxyRequestHandlingStrategy.getInstance();
         strategy.setHandlers(httpHandler, httpsHandler);
         requestStrategy = strategy;
     }

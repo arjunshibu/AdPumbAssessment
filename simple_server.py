@@ -1,6 +1,7 @@
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import json
 from urllib.parse import parse_qs, urlparse
+import os
 
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     def _send_response(self, status_code=200):
@@ -49,7 +50,9 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_PATCH(self):
         self._handle_request()
 
-def run_server(port=4000):
+def run_server(port=None):
+    if port is None:
+        port = int(os.getenv('PORT', 4000))
     server_address = ('', port)
     httpd = HTTPServer(server_address, SimpleHTTPRequestHandler)
     print(f'Starting server on port {port}...')

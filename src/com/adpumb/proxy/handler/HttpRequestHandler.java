@@ -1,5 +1,6 @@
 package com.adpumb.proxy.handler;
 
+import com.adpumb.proxy.config.Config;
 import com.adpumb.proxy.config.LoggerManager;
 
 import java.io.*;
@@ -8,6 +9,7 @@ import java.util.logging.Logger;
 
 public class HttpRequestHandler implements RequestHandler {
     private static HttpRequestHandler instance;
+    private final Config config = Config.getInstance();
     private static final Logger logger = LoggerManager.getInstance(HttpRequestHandler.class.getName());
     static final Object responseLock = new Object();
 
@@ -40,6 +42,17 @@ public class HttpRequestHandler implements RequestHandler {
         String[] requestLineParts = requestLines[0].split(" ");
         String urlStr = requestLineParts[1];
         URL url = new URL(urlStr);
+
+        // Only applicable for docker compose
+        // If the request is for localhost, use the target host and port
+        if (url.getHost().equals("localhost") || url.getHost().equals("127.0.0.1")) {
+            String host = config.getLocalHost();
+            Integer port = config.getLocalPort();
+            if (host != null && port != null) {
+                return new URLInfo(host, port);
+            }
+        }
+
         int port = url.getPort() == -1 ? 80 : url.getPort();
         return new URLInfo(url.getHost(), port);
     }
@@ -50,10 +63,15 @@ public class HttpRequestHandler implements RequestHandler {
 
     private void sendRequestToTarget(Socket target, String request) throws IOException {
         OutputStream targetOutputStream = target.getOutputStream();
-        // Write the request line and headers
+        writeRequestLineAndHeaders(targetOutputStream, request);
+        writeRequestBody(targetOutputStream, request);
+        targetOutputStream.flush();
+    }
+
+    private void writeRequestLineAndHeaders(OutputStream targetOutputStream, String request) throws IOException {
         String[] requestLines = request.split("\r\n");
-        String requestLine = requestLines[0];
-        targetOutputStream.write((requestLine + "\r\n").getBytes());
+        // Write the request line
+        targetOutputStream.write((requestLines[0] + "\r\n").getBytes());
 
         // Write headers
         for (int i = 1; i < requestLines.length; i++) {
@@ -62,18 +80,15 @@ public class HttpRequestHandler implements RequestHandler {
             }
             targetOutputStream.write((requestLines[i] + "\r\n").getBytes());
         }
-
-        // Write empty line to separate headers from body
         targetOutputStream.write("\r\n".getBytes());
+    }
 
-        // If there's a body, write it
+    private void writeRequestBody(OutputStream targetOutputStream, String request) throws IOException {
         int bodyStart = request.indexOf("\r\n\r\n") + 4;
         if (bodyStart < request.length()) {
             String body = request.substring(bodyStart);
             targetOutputStream.write(body.getBytes());
         }
-
-        targetOutputStream.flush();
     }
 
     private void handleTargetResponse(Socket target, DataOutputStream out) throws IOException {

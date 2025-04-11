@@ -44,7 +44,15 @@ public class HttpClientHandler implements RequestHandler {
         StringBuilder requestBuilder = new StringBuilder();
         requestBuilder.append(requestLine).append("\r\n");
 
-        // Read headers
+        int contentLength = this.readHeaders(requestReader, requestBuilder);
+        this.readBody(requestReader, requestBuilder, contentLength);
+
+        String request = requestBuilder.toString();
+        logger.info("Received request: " + requestLine);
+        return request;
+    }
+
+    private int readHeaders(BufferedReader requestReader, StringBuilder requestBuilder) throws IOException {
         String line;
         int contentLength = 0;
         while ((line = requestReader.readLine()) != null && !line.isEmpty()) {
@@ -54,8 +62,11 @@ public class HttpClientHandler implements RequestHandler {
             }
         }
         requestBuilder.append("\r\n");
+        return contentLength;
+    }
 
-        // Read body if present
+    private void readBody(BufferedReader requestReader, StringBuilder requestBuilder, int contentLength)
+            throws IOException {
         if (contentLength > 0) {
             char[] body = new char[contentLength];
             int read = requestReader.read(body, 0, contentLength);
@@ -64,10 +75,6 @@ public class HttpClientHandler implements RequestHandler {
             }
             requestBuilder.append(new String(body));
         }
-
-        String request = requestBuilder.toString();
-        logger.info("Received request: " + requestLine);
-        return request;
     }
 
     private void sendRequestToOffshore(String request, RequestContext context) throws IOException {

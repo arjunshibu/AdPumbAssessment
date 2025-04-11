@@ -10,17 +10,17 @@ import java.net.Socket;
 
 public class CommandFactory {
     private static CommandFactory instance;
-    private final RequestHandler clientHandler;
-    private final RequestHandlingStrategy requestStrategy;
+    private final RequestHandler clientRequestHandler;
+    private final RequestHandlingStrategy requestHandlingStrategy;
 
     private CommandFactory() {
-        RequestHandler httpHandler = HttpRequestHandler.getInstance();
-        RequestHandler httpsHandler = HttpsRequestHandler.getInstance();
-        clientHandler = HttpClientHandler.getInstance();
+        RequestHandler httpRequestHandler = HttpRequestHandler.getInstance();
+        RequestHandler httpsRequestHandler = HttpsRequestHandler.getInstance();
+        clientRequestHandler = HttpClientHandler.getInstance();
 
         RequestHandlingStrategy strategy = ProxyRequestHandlingStrategy.getInstance();
-        strategy.setHandlers(httpHandler, httpsHandler);
-        requestStrategy = strategy;
+        strategy.setHandlers(httpRequestHandler, httpsRequestHandler);
+        requestHandlingStrategy = strategy;
     }
 
     public static CommandFactory getInstance() {
@@ -32,12 +32,12 @@ public class CommandFactory {
 
     // Factory method for creating ServerCommand
     public Command createServerCommand(Socket socket) {
-        return new ServerCommand(socket, requestStrategy);
+        return new ServerCommand(socket, requestHandlingStrategy);
     }
 
     // Factory method for creating ClientCommand
     public Command createClientCommand(Socket clientSocket, DataInputStream proxyServerInputStream,
             DataOutputStream proxyServerOutputStream) {
-        return new ClientCommand(clientSocket, proxyServerInputStream, proxyServerOutputStream, clientHandler);
+        return new ClientCommand(clientSocket, proxyServerInputStream, proxyServerOutputStream, clientRequestHandler);
     }
 }

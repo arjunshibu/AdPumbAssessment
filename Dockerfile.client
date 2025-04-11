@@ -1,0 +1,25 @@
+# Build stage
+FROM eclipse-temurin:19-jdk AS builder
+
+WORKDIR /build
+
+# Copy source files
+COPY src /build/src
+COPY build.sh /build/
+
+# Build the JAR
+RUN chmod +x build.sh && \
+    ./build.sh
+
+# Run stage
+FROM eclipse-temurin:19-jre
+
+WORKDIR /app
+
+# Copy only the built JAR from builder stage
+COPY --from=builder /build/out/ShipProxyClient.jar /app/
+COPY --from=builder /build/src/application.properties /app/
+
+EXPOSE 8080
+
+CMD ["java", "-jar", "ShipProxyClient.jar"] 

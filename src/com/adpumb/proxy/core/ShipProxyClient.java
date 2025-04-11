@@ -32,7 +32,7 @@ public class ShipProxyClient extends AbstractProxyComponent {
             this.proxyInputStream = new DataInputStream(proxySocket.getInputStream());
             this.proxyOutputStream = new DataOutputStream(proxySocket.getOutputStream());
 
-            try (ServerSocket localProxy = createServerSocket(config.getLocalPort(), "Ship Proxy Client")) {
+            try (ServerSocket localProxy = createServerSocket(config.getClientPort(), "Ship Proxy Client")) {
                 this.startConnectionAcceptor(localProxy, proxyInputStream, proxyOutputStream);
                 this.processCommands();
             }
